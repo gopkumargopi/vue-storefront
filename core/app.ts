@@ -13,7 +13,7 @@ import VueObserveVisibility from 'vue-observe-visibility'
 import { getApolloProvider } from './scripts/resolvers/resolveGraphQL'
 // TODO simplify by removing global mixins, plugins and filters - it can be done in normal 'vue' way
 import { registerTheme } from '@vue-storefront/core/lib/themes'
-import { themeEntry } from 'theme/index.js'
+import { themeEntry, themeOptions } from 'theme/index.js'
 import { registerModules } from '@vue-storefront/core/lib/module'
 import { prepareStoreView, currentStoreView } from '@vue-storefront/core/lib/multistore'
 import * as coreMixins from '@vue-storefront/core/mixins'
@@ -83,15 +83,16 @@ const createApp = async (ssrContext, config, storeCode = null): Promise<{app: Vu
     })
   })
 
+  const apolloProvider = await getApolloProvider()
+
   let vueOptions = {
     router: routerProxy,
     store,
     i18n,
-    render: h => h(themeEntry)
+    render: h => h(themeEntry),
+    ...apolloProvider ? { provider: apolloProvider } : {},
+    ...themeOptions ? themeOptions : {}
   }
-
-  const apolloProvider = await getApolloProvider()
-  if (apolloProvider) Object.assign(vueOptions, {provider: apolloProvider})
 
   const app = new Vue(vueOptions)
 
