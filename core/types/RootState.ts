@@ -10,8 +10,9 @@ export default interface RootState {
   shipping: any,
   user: any,
   wishlist: any,
-  attribute: string,
+  attribute: any,
   ui: any,
+  newsletter: any,
   category: {
     current_path: string,
     current_product_query: any,
@@ -31,5 +32,6 @@ export default interface RootState {
   userTokenInvalidated: string | null,
   userTokenInvalidateAttemptsCount: number,
   userTokenInvalidateLock: number,
-  route?: any
+  route?: any,
+  url: any
 }

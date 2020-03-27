@@ -1,6 +1,15 @@
 module.exports = {
   base: '/',
-  head: [['link', { rel: 'icon', href: '/favicon.png' }]],
+  port: 8081,
+  markdown: {
+    toc: {
+      includeLevel: [2]
+    }
+  },
+  head: [
+    ['link', { rel: 'icon', href: '/favicon.png' }],
+    ['script', { src: 'https://cdnjs.cloudflare.com/ajax/libs/diff2html/2.12.1/diff2html.min.js'}]
+  ],
   themeConfig: {
     repo: 'DivanteLtd/vue-storefront',
     docsDir: 'docs',
@@ -18,8 +27,35 @@ module.exports = {
     ],
     sidebar: {
       '/guide/': [
-        '',
+      	{
+          title : 'General Information',
+          collapsable: false,
+          children: [
+            'general/introduction'
+          ]
+	      },
         'upgrade-notes/',
+        {
+          title: 'Cookbook',
+          collapsable: false,
+          children: [
+            'cookbook/data-import',
+            'cookbook/elastic',
+            'cookbook/setup',
+//            'cookbook/integration',
+            'cookbook/module',
+            'cookbook/theme',
+//            'cookbook/common-pitfall',
+//            'cookbook/devops',
+//            'cookbook/tdd',
+//            'cookbook/internals',
+//            'cookbook/vue',
+//            'cookbook/multistores',
+//            'cookbook/migration',
+//            'cookbook/history',
+            'cookbook/checklist'
+          ],
+        },
         {
           title: 'Installation',
           collapsable: false,
@@ -44,7 +80,9 @@ module.exports = {
             'basics/graphql',
             'basics/ssr-cache',
             'basics/amp',
-            'basics/e2e'
+            'basics/static-generator',
+            'basics/e2e',
+            'basics/url'
           ],
         },
         {
@@ -63,17 +101,6 @@ module.exports = {
           ],
         },
         {
-          title: 'Components',
-          collapsable: false,
-          children: [
-            'components/home-page',
-            'components/category-page',
-            'components/product',
-            'components/modal',
-            'components/events-list'
-          ],
-        },
-        {
           title: 'Data in Vue Storefront',
           collapsable: false,
           children: [
@@ -85,15 +112,6 @@ module.exports = {
             'data/entity-types',
             'data/static-data',
             'data/data-loader'
-          ],
-        },
-        {
-          title: 'Extensions',
-          collapsable: false,
-          children: [
-            'extensions/introduction',
-            'extensions/extending-api',
-            'extensions/extending-server-side-routes',
           ],
         },
         {
@@ -109,18 +127,6 @@ module.exports = {
           ],
         },
         {
-          title: 'Modules',
-          collapsable: false,
-          children: [
-            'modules/introduction',
-            'modules/cart',
-            // 'modules/catalog',
-            'modules/user',
-            'modules/checkout',
-            'modules/order',
-          ],
-        },
-        {
           title: 'Integrations',
           collapsable: false,
           children: [
@@ -132,7 +138,24 @@ module.exports = {
             'integrations/tier-prices-sync',
             'integrations/totals-sync',
             'integrations/multistore',
-            'integrations/product-reviews',
+          ],
+        },
+        {
+          title: 'Data Resolvers',
+          collapsable: false,
+          children: [
+            'data-resolvers/introduction',
+            'data-resolvers/category-service',
+            'data-resolvers/user-service',
+          ]
+        },
+        {
+          title: 'Archives',
+          collapsable: true,
+          children: [
+            'archives/modules',
+            'archives/extensions',
+            'archives/components'
           ],
         },
       ],

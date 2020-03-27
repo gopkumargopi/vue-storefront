@@ -6,14 +6,19 @@
           <h2 class="h3 m0 mb10 serif lh20 weight-700">
             {{ $t('Reviews') }}
           </h2>
-          <reviews-list :per-page="4" :items="reviews ? reviews : []" />
+          <reviews-list
+            :per-page="4"
+            :items="reviews"
+            :product-name="productName"
+            :product="product"
+          />
         </div>
         <div class="col-xs-12 col-md-5 pt50">
           <h2 class="h3 m0 mb10 serif lh20 weight-700">
             {{ $t('Add review') }}
           </h2>
           <form action="#" @submit.prevent="outOfScope()">
-            <div class="mb25 pt50">
+            <div class="mb10 pt50">
               <base-input
                 type="text"
                 :placeholder="$t('First name') + ' *'"
@@ -31,7 +36,7 @@
                 ]"
               />
             </div>
-            <div class="mb25">
+            <div class="mb10">
               <base-input
                 type="email"
                 :placeholder="$t('Email address') + ' *'"
@@ -49,7 +54,7 @@
                 ]"
               />
             </div>
-            <div class="mb25">
+            <div class="mb10">
               <base-input
                 type="text"
                 :placeholder="$t('Summary') + ' *'"
@@ -84,12 +89,14 @@
               >
                 {{ $t('Add review') }}
               </button-full>
-              <span
-                class="fs-medium ml20 cl-gray lh30 py5 block"
-                v-if="!currentUser"
-              >
-                {{ $t('or') }} <a href="#" class="cl-primary" @click.prevent="login()">{{ $t('login') }}</a> {{ $t('to account') }}
-              </span>
+              <no-ssr>
+                <span
+                  class="fs-medium ml20 cl-gray lh30 py5 block"
+                  v-if="!currentUser"
+                >
+                  {{ $t('or') }} <a href="#" class="cl-primary" @click.prevent="login()">{{ $t('login') }}</a> {{ $t('to account') }}
+                </span>
+              </no-ssr>
             </div>
           </form>
         </div>
@@ -107,6 +114,9 @@ import ButtonFull from 'theme/components/theme/ButtonFull'
 import ReviewsList from 'theme/components/theme/blocks/Reviews/ReviewsList'
 import { Reviews } from '@vue-storefront/core/modules/review/components/Reviews'
 import { AddReview } from '@vue-storefront/core/modules/review/components/AddReview'
+import NoSSR from 'vue-no-ssr'
+import i18n from '@vue-storefront/i18n'
+
 export default {
   name: 'Reviews',
   data () {
@@ -119,10 +129,21 @@ export default {
       }
     }
   },
-  computed: {
-    product () {
-      return this.$store.state.product
+  props: {
+    productId: {
+      type: [String, Number],
+      required: true
     },
+    productName: {
+      type: String,
+      default: ''
+    },
+    product: {
+      type: Object,
+      required: true
+    }
+  },
+  computed: {
     currentUser () {
       return this.$store.state.user.current
     }
@@ -135,17 +156,32 @@ export default {
       }
     },
     refreshList () {
-      this.$store.dispatch('review/list', { productId: this.product.current.id })
+      this.$store.dispatch('review/list', { productId: this.productId })
     },
-    submit () {
-      this.addReview({
-        'product_id': this.product.current.id,
+    async submit () {
+      const isReviewCreated = await this.$store.dispatch('review/add', {
+        'product_id': this.productId,
         'title': this.formData.summary,
         'detail': this.formData.review,
         'nickname': this.formData.name,
         'review_entity': 'product',
-        'review_status': 2,
         'customer_id': this.currentUser ? this.currentUser.id : null
+      })
+
+      if (isReviewCreated) {
+        this.$store.dispatch('notification/spawnNotification', {
+          type: 'success',
+          message: i18n.t('You submitted your review for moderation.'),
+          action1: { label: i18n.t('OK') }
+        })
+
+        return
+      }
+
+      this.$store.dispatch('notification/spawnNotification', {
+        type: 'error',
+        message: i18n.t('Something went wrong. Try again in a few seconds.'),
+        action1: { label: i18n.t('OK') }
       })
     },
     clearReviewForm () {
@@ -179,7 +215,7 @@ export default {
     this.refreshList()
     this.fillInUserData()
   },
-  mixins: [ Reviews, AddReview ],
+  mixins: [ Reviews ],
   validations: {
     formData: {
       name: {
@@ -202,7 +238,8 @@ export default {
     ButtonFull,
     BaseInput,
     BaseTextarea,
-    ReviewsList
+    ReviewsList,
+    'no-ssr': NoSSR
   }
 }
 </script>

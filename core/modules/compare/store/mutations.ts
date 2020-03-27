@@ -10,9 +10,7 @@ const mutations: MutationTree<CompareState> = {
   [types.COMPARE_ADD_ITEM] (state, {product}) {
     const record = state.items.find(p => p.sku === product.sku)
     if (!record) {
-      state.items.push({
-        ...product
-      })
+      state.items.push(product)
     }
   },
   [types.COMPARE_DEL_ITEM] (state, {product}) {
@@ -20,6 +18,9 @@ const mutations: MutationTree<CompareState> = {
   },
   [types.COMPARE_LOAD_COMPARE] (state, storedItems) {
     state.items = storedItems || []
+  },
+  [types.SET_COMPARE_LOADED] (state, isLoaded: boolean = true) {
+    state.loaded = isLoaded
   }
 }
 

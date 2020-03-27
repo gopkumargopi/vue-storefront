@@ -4,17 +4,19 @@
     "module": "esnext",
     "strict": false,
     "allowJs": true,
-    "importHelpers": true,
+    "importHelpers": false,
     "moduleResolution": "node",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
     "resolveJsonModule": false,
     "sourceMap": true,
+    "downlevelIteration": true,
     "baseUrl": ".",
     "types": [
       "reflect-metadata",
-      "node"
+      "node",
+      "jest"
     ],
     "paths": {
       "core/*": ["core/*"],
@@ -30,10 +32,12 @@
     "src/**/*.vue",
     "core/**/*.ts",
     "core/**/*.vue",
-    "tests/**/*.ts",
+    "test/**/*.ts",
     "module/**/*.ts",
+    "packages/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "**/*.spec.ts"
   ]
 }

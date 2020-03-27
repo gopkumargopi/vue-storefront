@@ -1,33 +1,33 @@
 import map from 'lodash-es/map'
-import rootStore from '@vue-storefront/core/store'
-import { prepareElasticsearchQueryBody } from './elasticsearchQuery'
+import { elasticsearch } from 'storefront-query-builder'
 import fetch from 'isomorphic-fetch'
-import { slugify } from '@vue-storefront/core/helpers'
+import { slugify, processURLAddress } from '@vue-storefront/core/helpers'
+import queryString from 'query-string'
 import { currentStoreView, prepareStoreView } from '../../../multistore'
-import SearchQuery from '@vue-storefront/core/lib/search/searchQuery'
+import { SearchQuery } from 'storefront-query-builder'
 import HttpQuery from '@vue-storefront/core/types/search/HttpQuery'
 import { SearchResponse } from '@vue-storefront/core/types/search/SearchResponse'
+import config from 'config'
+import getApiEndpointUrl from '@vue-storefront/core/helpers/getApiEndpointUrl';
 
 export class SearchAdapter {
   public entities: any
 
-  constructor () {
+  public constructor () {
     this.entities = []
     this.initBaseTypes()
   }
 
-  async search (Request) {
+  public async search (Request) {
     if (!this.entities[Request.type]) {
-      throw new Error('No entity type registered for ' + Request.type )
+      throw new Error('No entity type registered for ' + Request.type)
     }
-
-    const buildURLQuery = obj => Object.entries(obj).map(pair => pair.map(encodeURIComponent).join('=')).join('&')
-
     let ElasticsearchQueryBody = {}
     if (Request.searchQuery instanceof SearchQuery) {
-      ElasticsearchQueryBody = await prepareElasticsearchQueryBody(Request.searchQuery)
+      const bodybuilder = await import(/* webpackChunkName: "bodybuilder" */ 'bodybuilder')
+      ElasticsearchQueryBody = await elasticsearch.buildQueryBodyFromSearchQuery({ config, queryChain: bodybuilder.default(), searchQuery: Request.searchQuery })
       if (Request.searchQuery.getSearchText() !== '') {
-        ElasticsearchQueryBody['min_score'] = rootStore.state.config.elasticsearch.min_score
+        ElasticsearchQueryBody['min_score'] = config.elasticsearch.min_score
       }
     } else {
       // backward compatibility for old themes uses bodybuilder
@@ -40,17 +40,14 @@ export class SearchAdapter {
       ElasticsearchQueryBody['groupToken'] = Request.groupToken
     }
 
-    const storeView = (Request.store === null) ? currentStoreView() : prepareStoreView(Request.store)
+    const storeView = (Request.store === null) ? currentStoreView() : await prepareStoreView(Request.store)
 
     Request.index = storeView.elasticsearch.index
 
-    let url = storeView.elasticsearch.host
-    if (!url.startsWith('http')) {
-      url = 'http://' + url
-    }
+    let url = processURLAddress(getApiEndpointUrl(storeView.elasticsearch, 'host'))
 
     if (this.entities[Request.type].url) {
-      url = this.entities[Request.type].url
+      url = getApiEndpointUrl(this.entities[Request.type], 'url')
     }
 
     const httpQuery: HttpQuery = {
@@ -72,62 +69,74 @@ export class SearchAdapter {
     if (!Request.index || !Request.type) {
       throw new Error('Query.index and Query.type are required arguments for executing ElasticSearch query')
     }
-    if (rootStore.state.config.elasticsearch.queryMethod === 'GET') {
+    if (config.elasticsearch.queryMethod === 'GET') {
       httpQuery.request = JSON.stringify(ElasticsearchQueryBody)
     }
     url = url + '/' + encodeURIComponent(Request.index) + '/' + encodeURIComponent(Request.type) + '/_search'
-    url = url + '?' + buildURLQuery(httpQuery)
-    return fetch(url, { method: rootStore.state.config.elasticsearch.queryMethod,
+    url = url + '?' + queryString.stringify(httpQuery)
+
+    return fetch(url, {
+      method: config.elasticsearch.queryMethod,
       mode: 'cors',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
       },
-      body: rootStore.state.config.elasticsearch.queryMethod === 'POST' ? JSON.stringify(ElasticsearchQueryBody) : null
-    }).then(resp => { return resp.json() })
+      body: config.elasticsearch.queryMethod === 'POST' ? JSON.stringify(ElasticsearchQueryBody) : null
+    })
+      .then(resp => { return resp.json() })
+      .catch(error => {
+        throw new Error('FetchError in request to ES: ' + error.toString())
+      })
   }
 
-  handleResult (resp, type, start = 0, size = 50): SearchResponse {
+  public handleResult (resp, type, start = 0, size = 50): SearchResponse {
     if (resp === null) {
       throw new Error('Invalid ES result - null not exepcted')
     }
     if (resp.hasOwnProperty('hits')) {
       return {
         items: map(resp.hits.hits, hit => {
-          return Object.assign(hit._source, { _score: hit._score, slug: (hit._source.hasOwnProperty('url_key') && rootStore.state.config.products.useMagentoUrlKeys) ? hit._source.url_key : (hit._source.hasOwnProperty('name') ? slugify(hit._source.name) + '-' + hit._source.id : '') }) // TODO: assign slugs server side
+          return Object.assign(hit._source, { _score: hit._score, slug: hit._source.slug ? hit._source.slug : ((hit._source.hasOwnProperty('url_key') && config.products.useMagentoUrlKeys) ? hit._source.url_key : (hit._source.hasOwnProperty('name') ? slugify(hit._source.name) + '-' + hit._source.id : '')) }) // TODO: assign slugs server side
         }), // TODO: add scoring information
         total: resp.hits.total,
         start: start,
         perPage: size,
-        aggregations: resp.aggregations
+        aggregations: resp.aggregations,
+        attributeMetadata: resp.attribute_metadata,
+        suggestions: resp.suggest
       }
     } else {
-      if (resp.error) {
-        throw new Error(JSON.stringify(resp.error))
+      const isErrorObject = (resp && resp.code) >= 400 ? resp : null
+      if (resp.error || isErrorObject) {
+        throw new Error(JSON.stringify(resp.error || resp))
       } else {
-        throw new Error('Unknown error with elasticsearch result in resultPorcessor for entity type \''+type+'\'')
+        throw new Error('Unknown error with elasticsearch result in resultProcessor for entity type \'' + type + '\'')
       }
     }
   }
 
-  registerEntityType (entityType, { url = '', queryProcessor, resultPorcessor }) {
+  public registerEntityType (entityType, { url = '', url_ssr = '', queryProcessor, resultProcessor }) {
     this.entities[entityType] = {
       queryProcessor: queryProcessor,
-      resultPorcessor: resultPorcessor
+      resultProcessor: resultProcessor
     }
     if (url !== '') {
       this.entities[entityType]['url'] = url
     }
+    if (url_ssr !== '') {
+      this.entities[entityType]['url_ssr'] = url_ssr
+    }
     return this
   }
 
-  initBaseTypes() {
+  public initBaseTypes () {
     this.registerEntityType('product', {
       queryProcessor: (query) => {
         // function that can modify the query each time before it's being executed
         return query
       },
-      resultPorcessor: (resp, start, size) =>  {
+      resultProcessor: (resp, start, size) => {
         return this.handleResult(resp, 'product', start, size)
       }
     })
@@ -137,7 +146,7 @@ export class SearchAdapter {
         // function that can modify the query each time before it's being executed
         return query
       },
-      resultPorcessor: (resp, start, size) =>  {
+      resultProcessor: (resp, start, size) => {
         return this.handleResult(resp, 'attribute', start, size)
       }
     })
@@ -147,7 +156,7 @@ export class SearchAdapter {
         // function that can modify the query each time before it's being executed
         return query
       },
-      resultPorcessor: (resp, start, size) =>  {
+      resultProcessor: (resp, start, size) => {
         return this.handleResult(resp, 'category', start, size)
       }
     })
@@ -157,7 +166,7 @@ export class SearchAdapter {
         // function that can modify the query each time before it's being executed
         return query
       },
-      resultPorcessor: (resp, start, size) =>  {
+      resultProcessor: (resp, start, size) => {
         return this.handleResult(resp, 'taxrule', start, size)
       }
     })
@@ -167,7 +176,7 @@ export class SearchAdapter {
         // function that can modify the query each time before it's being executed
         return query
       },
-      resultPorcessor: (resp, start, size) =>  {
+      resultProcessor: (resp, start, size) => {
         return this.handleResult(resp, 'review', start, size)
       }
     })
@@ -176,7 +185,7 @@ export class SearchAdapter {
         // function that can modify the query each time before it's being executed
         return query
       },
-      resultPorcessor: (resp, start, size) =>  {
+      resultProcessor: (resp, start, size) => {
         return this.handleResult(resp, 'cms_page', start, size)
       }
     })
@@ -185,7 +194,7 @@ export class SearchAdapter {
         // function that can modify the query each time before it's being executed
         return query
       },
-      resultPorcessor: (resp, start, size) =>  {
+      resultProcessor: (resp, start, size) => {
         return this.handleResult(resp, 'cms_block', start, size)
       }
     })
@@ -194,7 +203,7 @@ export class SearchAdapter {
         // function that can modify the query each time before it's being executed
         return query
       },
-      resultPorcessor: (resp, start, size) =>  {
+      resultProcessor: (resp, start, size) => {
         return this.handleResult(resp, 'cms_hierarchy', start, size)
       }
     })

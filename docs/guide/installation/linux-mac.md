@@ -10,7 +10,7 @@ Let's go!
 
   Already included in `vue-storefront` and `vue-storefront-api` Docker images (required locally, if you do not use containerization):
 
-- Node.js [Active LTS](https://nodejs.org/en/) (>=8.0.0)
+- Node.js [Active LTS](https://nodejs.org/en/) (>=10.x)
 - [Yarn](https://yarnpkg.com/en/docs/install) (>=1.0.0)
 - [ImageMagick](https://www.imagemagick.org/script/index.php) (to fit, resize and crop images)
 
@@ -142,8 +142,8 @@ Depending on the selected mode, execute the following commands:
   ```
 - **standard** mode:
   ```bash
-  docker exec -it vuestorefrontapi_app_1 yarn restore
-  docker exec -it vuestorefrontapi_app_1 yarn migrate
+  docker exec -it vue-storefront-api_app_1 yarn restore
+  docker exec -it vue-storefront-api_app_1 yarn migrate
   ```
 
 Clone the image files for default product database (we're using [Magento2 example products dataset](https://github.com/magento/magento2-sample-data). Please execute the following command in **the root folder of vue-storefront-api project**:

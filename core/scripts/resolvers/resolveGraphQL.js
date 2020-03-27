@@ -1,18 +1,37 @@
 import { server, graphql } from 'config'
 import Vue from 'vue'
 import { Logger } from '@vue-storefront/core/lib/logger'
+import { once } from '@vue-storefront/core/helpers'
+import { isServer } from '@vue-storefront/core/helpers';
 
 export const getApolloProvider = async () => {
   if (server.api === 'graphql') {
     const ApolloModule = await import(/* webpackChunkName: "vsf-graphql" */ 'vue-apollo')
     const VueApollo = ApolloModule.default
-    Vue.use(VueApollo)
+
+    once('__VUE_EXTEND_GQL__', () => {
+      Vue.use(VueApollo)
+    })
 
     const HttpLinkModule = await import(/* webpackChunkName: "vsf-graphql" */ 'apollo-link-http')
     const HttpLink = HttpLinkModule.HttpLink
 
+    let uri
+    if (isServer && (graphql.host_ssr || graphql.port_ssr)) {
+      const host = graphql.host_ssr || graphql.host
+      const port = graphql.port_ssr || graphql.port
+
+      uri = host.indexOf('://') >= 0
+        ? host
+        : (server.protocol + '://' + host + ':' + port + '/graphql')
+    } else {
+      uri = graphql.host.indexOf('://') >= 0
+        ? graphql.host
+        : (server.protocol + '://' + graphql.host + ':' + graphql.port + '/graphql')
+    }
+
     const httpLink = new HttpLink({
-      uri: graphql.host.indexOf('://') >= 0 ? graphql.host : (server.protocol + '://' + graphql.host + ':' + graphql.port + '/graphql')
+      uri
     })
 
     const ApolloClientModule = await import(/* webpackChunkName: "vsf-graphql" */ 'apollo-client')
@@ -47,7 +66,7 @@ export const getApolloProvider = async () => {
     })
 
     return apolloProvider
-  }
+  } else return null
 }
 
 export default {

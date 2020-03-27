@@ -5,19 +5,13 @@
   >
     <router-link
       class="block no-underline product-link"
-      :to="localizedRoute({
-        name: product.type_id + '-product',
-        params: {
-          parentSku: product.parentSku ? product.parentSku : product.sku,
-          slug: product.slug,
-          childSku: product.sku
-        }
-      })"
+      :to="productLink"
       data-testid="productLink"
     >
       <div
         class="product-image relative bg-cl-secondary"
-        :class="[{ sale: labelsActive && isOnSale }, { new: labelsActive && isNew }]">
+        :class="[{ sale: labelsActive && isOnSale }, { new: labelsActive && isNew }]"
+      >
         <amp-img
           :alt="product.name"
           :src="thumbnailObj.src"
@@ -32,23 +26,23 @@
 
       <span
         class="price-original mr5 lh30 cl-secondary"
-        v-if="product.special_price && parseFloat(product.originalPriceInclTax) > 0 && !onlyImage"
+        v-if="product.special_price && parseFloat(product.original_price_incl_tax) > 0 && !onlyImage"
       >
-        {{ product.originalPriceInclTax | price }}
+        {{ product.original_price_incl_tax | price(storeView) }}
       </span>
 
       <span
         class="price-special lh30 cl-accent weight-700"
         v-if="product.special_price && parseFloat(product.special_price) > 0 && !onlyImage"
       >
-        {{ product.priceInclTax | price }}
+        {{ product.price_incl_tax | price(storeView) }}
       </span>
 
       <span
         class="lh30 cl-secondary"
-        v-if="!product.special_price && parseFloat(product.priceInclTax) > 0 && !onlyImage"
+        v-if="!product.special_price && parseFloat(product.price_incl_tax) > 0 && !onlyImage"
       >
-        {{ product.priceInclTax | price }}
+        {{ product.price_incl_tax | price(storeView) }}
       </span>
     </router-link>
   </div>
@@ -57,19 +51,24 @@
 <script>
 import rootStore from '@vue-storefront/core/store'
 import { ProductTile } from '@vue-storefront/core/modules/catalog/components/ProductTile.ts'
+import config from 'config'
+import { currentStoreView } from '@vue-storefront/core/lib/multistore'
 
 export default {
   mixins: [ProductTile],
   props: {
     labelsActive: {
       type: Boolean,
-      requred: false,
       default: true
     },
     onlyImage: {
       type: Boolean,
-      required: false,
       default: false
+    }
+  },
+  computed: {
+    storeView () {
+      return currentStoreView()
     }
   },
   methods: {
@@ -80,7 +79,7 @@ export default {
     },
     visibilityChanged (isVisible, entry) {
       if (isVisible) {
-        if (rootStore.state.config.products.configurableChildrenStockPrefetchDynamic && rootStore.products.filterUnavailableVariants) {
+        if (config.products.configurableChildrenStockPrefetchDynamic && config.products.filterUnavailableVariants) {
           const skus = [this.product.sku]
           if (this.product.type_id === 'configurable' && this.product.configurable_children && this.product.configurable_children.length > 0) {
             for (const confChild of this.product.configurable_children) {

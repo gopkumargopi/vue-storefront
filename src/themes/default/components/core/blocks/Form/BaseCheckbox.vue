@@ -9,17 +9,17 @@
         @keyup.enter="$emit('click')"
         @click="$emit('click')"
         @blur="$emit('blur')"
-        @change="$emit('change')"
+        @change="$emit('change', $event.target.checked)"
         :disabled="disabled"
       >
       <label
         class="pl35 lh30 h4 pointer"
         :for="id"
       >
-        <slot/>
+        <slot />
       </label>
     </div>
-    <ValidationMessages v-if="validations" :validations="validations"/>
+    <ValidationMessages v-if="validations" :validations="validations" />
   </div>
 </template>
 
@@ -31,6 +31,10 @@ export default {
   components: {
     ValidationMessages
   },
+  model: {
+    prop: 'value',
+    event: 'change'
+  },
   props: {
     id: {
       type: String,
@@ -41,7 +45,7 @@ export default {
       required: true
     },
     validations: {
-      type: Object,
+      type: Array,
       default: () => []
     },
     disabled: {
